@@ -28,13 +28,29 @@ var (
 )
 
 func init() {
+	if channelSecret == "" || channelAccessToken == "" {
+		log.Info("LINE Bot Disabled: LINE_CHANNEL_SECRET or LINE_CHANNEL_ACCESSTOKEN is not set")
+		return
+	}
+
 	bot, err = linebot.New(channelSecret, channelAccessToken)
 	if err != nil {
-		log.Fatal(err)
+		bot = nil
+		log.WithError(err).Error("LINE Bot Initialize Failed; LINE Bot is disabled")
 	}
 }
 
-func HandleRequest(_ http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+// Enabled reports whether the LINE Bot client was initialized.
+func Enabled() bool {
+	return bot != nil
+}
+
+func HandleRequest(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	if !Enabled() {
+		http.Error(w, "LINE Bot integration is disabled", http.StatusServiceUnavailable)
+		return
+	}
+
 	events, err := bot.ParseRequest(r)
 	if err != nil {
 		log.WithError(err).Error("Line ParseRequest Error")
@@ -169,6 +185,11 @@ func getAccountIDAndType(event *linebot.Event) (id, accountType string) {
 }
 
 func PushTextMessage(id string, message string) {
+	if !Enabled() {
+		log.Warn("LINE Bot message skipped: integration is disabled")
+		return
+	}
+
 	_, err := bot.PushMessage(id, linebot.NewTextMessage(message)).Do()
 	if err != nil {
 		log.WithError(err).Error("Line Push Message Failed")
@@ -189,6 +210,11 @@ func genConfirmMessage(command string) *linebot.TemplateMessage {
 }
 
 func replyMessage(token string, message ...linebot.SendingMessage) {
+	if !Enabled() {
+		log.Warn("LINE Bot reply skipped: integration is disabled")
+		return
+	}
+
 	_, err := bot.ReplyMessage(token, message...).Do()
 	if err != nil {
 		log.WithError(err).Error("Line Reply Message Failed")
@@ -196,6 +222,11 @@ func replyMessage(token string, message ...linebot.SendingMessage) {
 }
 
 func BroadcastTextMessage(ids []string, message string) {
+	if !Enabled() {
+		log.Warn("LINE Bot broadcast skipped: integration is disabled")
+		return
+	}
+
 	_, err := bot.Multicast(ids, linebot.NewTextMessage(message)).Do()
 	if err != nil {
 		log.WithError(err).Error("Line Broadcast Message Failed")

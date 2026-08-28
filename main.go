@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	log "github.com/Ptt-Alertor/logrus"
@@ -102,7 +103,9 @@ func main() {
 	router.PUT("/users/:account", basicAuth(ctrlr.UserModify))
 
 	// line
-	router.POST("/line/callback", line.HandleRequest)
+	if line.Enabled() {
+		router.POST("/line/callback", line.HandleRequest)
+	}
 	router.POST("/line/notify/callback", line.CatchCallback)
 
 	// facebook messenger
@@ -110,7 +113,9 @@ func main() {
 	router.POST("/messenger/webhook", m.Received)
 
 	// telegram
-	router.POST("/telegram/"+telegramToken, telegram.HandleRequest)
+	if telegram.Enabled() {
+		router.POST("/telegram/"+telegramToken, telegram.HandleRequest)
+	}
 
 	// gops agent
 	if err := agent.Listen(agent.Options{Addr: ":6060", ShutdownCleanup: true}); err != nil {
@@ -124,14 +129,14 @@ func main() {
 		Handler: router,
 	}
 	go func() {
-		if err := srv.ListenAndServe(); err != nil {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal("ListenAndServer", err)
 		}
 	}()
 
 	// graceful shutdown
-	quit := make(chan os.Signal)
-	signal.Notify(quit, os.Interrupt)
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 	<-quit
 	log.Info("Shutdown Web Server...")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

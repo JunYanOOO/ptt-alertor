@@ -26,6 +26,10 @@ var highBoardNames = strings.Split(os.Getenv("BOARD_HIGH"), ",")
 
 func init() {
 	for _, name := range highBoardNames {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
 		bd := models.Board()
 		bd.Name = name
 		highBoards = append(highBoards, bd)
@@ -174,6 +178,11 @@ func (c Checker) Stop() {
 }
 
 func checkBoards(bds []*board.Board, duration time.Duration) {
+	if len(bds) == 0 {
+		time.Sleep(duration)
+		return
+	}
+
 	for _, bd := range bds {
 		time.Sleep(duration)
 		go checkNewArticle(bd, boardCh)

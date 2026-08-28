@@ -9,6 +9,33 @@
 [![StackShare](https://img.shields.io/badge/tech-stack-0690fa.svg?style=flat)](https://stackshare.io/ptt-alertor/ptt-alertor)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
+## Run with Docker Compose
+
+Docker Compose starts the application, Redis, DynamoDB Local, and a one-time
+initializer that creates the required `boards` and `articles` tables.
+
+```powershell
+Copy-Item .env.example .env
+docker compose up --build
+```
+
+Open <http://localhost:19090> after the application has started. Redis and
+DynamoDB data are stored in named Docker volumes.
+
+Notification integrations are optional. LINE Bot requires both
+`LINE_CHANNEL_SECRET` and `LINE_CHANNEL_ACCESSTOKEN`. To enable Telegram, set
+`TELEGRAM_TOKEN` and set `APP_HOST` to a public HTTPS URL in `.env`; the
+application registers `${APP_HOST}/telegram/${TELEGRAM_TOKEN}` as its webhook.
+
+Stop the stack with:
+
+```powershell
+docker compose down
+```
+
+Use `docker compose down -v` only when you also want to delete the local Redis
+and DynamoDB data.
+
 ## API
 
 ### Board

@@ -25,9 +25,20 @@ var (
 )
 
 func init() {
+	if token == "" {
+		log.Info("Telegram Bot Disabled: TELEGRAM_TOKEN is not set")
+		return
+	}
+	if host == "" {
+		log.Warn("Telegram Bot Disabled: APP_HOST is not set")
+		return
+	}
+
 	bot, err = tgbotapi.NewBotAPI(token)
 	if err != nil {
-		log.WithError(err).Fatal("Telegram Bot Initialize Failed")
+		bot = nil
+		log.WithError(err).Error("Telegram Bot Initialize Failed; Telegram is disabled")
+		return
 	}
 	// bot.Debug = true
 	log.Info("Telegram Authorized on " + bot.Self.UserName)
@@ -36,13 +47,25 @@ func init() {
 	webhookConfig.MaxConnections = 100
 	_, err = bot.SetWebhook(webhookConfig)
 	if err != nil {
-		log.WithError(err).Fatal("Telegram Bot Set Webhook Failed")
+		bot = nil
+		log.WithError(err).Error("Telegram Bot Set Webhook Failed; Telegram is disabled")
+		return
 	}
 	log.Info("Telegram Bot Sets Webhook Success")
 }
 
+// Enabled reports whether the Telegram client and webhook were initialized.
+func Enabled() bool {
+	return bot != nil
+}
+
 // HandleRequest handles request from webhook
 func HandleRequest(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	if !Enabled() {
+		http.Error(w, "Telegram integration is disabled", http.StatusServiceUnavailable)
+		return
+	}
+
 	bytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.WithError(err).Error("Telegram Read Request Body Failed")
@@ -148,6 +171,11 @@ const maxCharacters = 4096
 
 // SendTextMessage sends text message to chatID
 func SendTextMessage(chatID int64, text string) {
+	if !Enabled() {
+		log.Warn("Telegram message skipped: integration is disabled")
+		return
+	}
+
 	for _, msg := range myutil.SplitTextByLineBreak(text, maxCharacters) {
 		sendTextMessage(chatID, msg)
 	}
