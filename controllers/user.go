@@ -25,10 +25,10 @@ func UserAll(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 	us := models.User().All()
 
 	data := struct {
-		Total, Line, Messenger, Telegram, IdleUser, BlockUser         int
-		SubCount, BoardCount, KeywordCount, AuthorCount, PushSumCount int
-		User, Room, Group                                             int
-		Users                                                         []*user.User
+		Total, Line, Messenger, Telegram, Discord, IdleUser, BlockUser int
+		SubCount, BoardCount, KeywordCount, AuthorCount, PushSumCount  int
+		User, Room, Group                                              int
+		Users                                                          []*user.User
 	}{}
 	data.Users = us
 	data.Total = len(us)
@@ -44,6 +44,9 @@ func UserAll(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 		}
 		if u.Profile.Telegram != "" {
 			data.Telegram++
+		}
+		if u.Profile.DiscordChannel != "" {
+			data.Discord++
 		}
 		switch u.Profile.Type {
 		case "user", "":

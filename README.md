@@ -36,6 +36,35 @@ docker compose down
 Use `docker compose down -v` only when you also want to delete the local Redis
 and DynamoDB data.
 
+## Discord Bot
+
+1. Create an application and bot in the
+   [Discord Developer Portal](https://discord.com/developers/applications), then
+   copy the bot token.
+2. In **OAuth2 > URL Generator**, select the `bot` and
+   `applications.commands` scopes. Grant the bot **View Channels** and
+   **Send Messages**, then use the generated URL to add it to your server.
+3. Put the token and, during development, your Discord server ID in `.env`:
+
+```dotenv
+DISCORD_TOKEN=your-bot-token
+DISCORD_GUILD_ID=your-server-id
+```
+
+4. Start or rebuild the stack with `docker compose up --build`.
+
+Members with **Manage Channels** permission can manage the watch list in a
+server text channel. Alerts are sent back to the same channel:
+
+```text
+/新增 看板:gossiping 關鍵字:台積電
+/清單
+/刪除 看板:gossiping 關鍵字:台積電
+```
+
+Subscriptions are stored in Redis and survive application restarts. Leave
+`DISCORD_GUILD_ID` empty in production to register the commands globally.
+
 ## API
 
 ### Board

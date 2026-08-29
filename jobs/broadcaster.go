@@ -12,6 +12,7 @@ var platforms = map[string]bool{
 	"line":      true,
 	"messenger": true,
 	"telegram":  true,
+	"discord":   true,
 }
 
 type Broadcaster struct {
@@ -46,6 +47,9 @@ func (bc Broadcaster) Send(plfms []string) error {
 		if platformBl["email"] {
 			go bc.sendEmail(u)
 		}
+		if platformBl["discord"] {
+			go bc.sendDiscord(u)
+		}
 	}
 	return nil
 }
@@ -69,5 +73,10 @@ func (bc Broadcaster) sendMessenger(u *user.User) {
 func (bc Broadcaster) sendTelegram(u *user.User) {
 	bc.Profile.Telegram = u.Profile.Telegram
 	bc.Profile.TelegramChat = u.Profile.TelegramChat
+	ckCh <- bc
+}
+
+func (bc Broadcaster) sendDiscord(u *user.User) {
+	bc.Profile.DiscordChannel = u.Profile.DiscordChannel
 	ckCh <- bc
 }

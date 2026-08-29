@@ -574,6 +574,20 @@ func HandleTelegramFollow(id string, chatID int64) error {
 	return handleFollow(u)
 }
 
+// HandleDiscordFollow creates or re-enables the subscription owner for a
+// Discord channel. Subscriptions are channel-scoped so every server channel
+// can maintain an independent watch list.
+func HandleDiscordFollow(channelID string) (string, error) {
+	account := "discord:" + channelID
+	u := models.User().Find(account)
+	u.Profile.DiscordChannel = channelID
+	log.WithFields(log.Fields{
+		"id":       channelID,
+		"platform": "discord",
+	}).Info("User Join")
+	return account, handleFollow(u)
+}
+
 func handleFollow(u user.User) error {
 	if u.Profile.Account != "" {
 		u.Enable = true
@@ -587,6 +601,9 @@ func handleFollow(u user.User) error {
 		}
 		if u.Profile.Telegram != "" {
 			u.Profile.Account = u.Profile.Telegram
+		}
+		if u.Profile.DiscordChannel != "" {
+			u.Profile.Account = "discord:" + u.Profile.DiscordChannel
 		}
 		u.Enable = true
 		err := u.Save()

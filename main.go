@@ -13,6 +13,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/robfig/cron"
 
+	discordchannel "github.com/Ptt-Alertor/ptt-alertor/channels/discord"
 	"github.com/Ptt-Alertor/ptt-alertor/channels/line"
 	"github.com/Ptt-Alertor/ptt-alertor/channels/messenger"
 	"github.com/Ptt-Alertor/ptt-alertor/channels/telegram"
@@ -60,6 +61,10 @@ func basicAuth(handle httprouter.Handle) httprouter.Handle {
 }
 
 func main() {
+	if err := discordchannel.Start(); err != nil {
+		log.WithError(err).Error("Discord Bot Initialize Failed; Discord is disabled")
+	}
+	defer discordchannel.Close()
 	log.Info("Start Jobs")
 	startJobs()
 
