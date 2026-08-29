@@ -11,8 +11,9 @@
 
 ## Run with Docker Compose
 
-Docker Compose starts the application, Redis, DynamoDB Local, and a one-time
-initializer that creates the required `boards` and `articles` tables.
+Docker Compose starts the application, Redis, and DynamoDB Local. On startup,
+the application waits for DynamoDB and creates the required `boards` and
+`articles` tables when they do not already exist.
 
 ```powershell
 Copy-Item .env.example .env

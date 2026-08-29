@@ -17,6 +17,7 @@ import (
 	"github.com/Ptt-Alertor/ptt-alertor/channels/line"
 	"github.com/Ptt-Alertor/ptt-alertor/channels/messenger"
 	"github.com/Ptt-Alertor/ptt-alertor/channels/telegram"
+	"github.com/Ptt-Alertor/ptt-alertor/connections"
 	ctrlr "github.com/Ptt-Alertor/ptt-alertor/controllers"
 	"github.com/Ptt-Alertor/ptt-alertor/jobs"
 )
@@ -61,6 +62,14 @@ func basicAuth(handle httprouter.Handle) httprouter.Handle {
 }
 
 func main() {
+	databaseContext, cancelDatabaseInitialization := context.WithTimeout(context.Background(), 2*time.Minute)
+	databaseInitializationError := connections.EnsureDynamoDB(databaseContext)
+	cancelDatabaseInitialization()
+	if databaseInitializationError != nil {
+		log.WithError(databaseInitializationError).Fatal("DynamoDB Initialize Failed")
+	}
+	initializeData()
+
 	if err := discordchannel.Start(); err != nil {
 		log.WithError(err).Error("Discord Bot Initialize Failed; Discord is disabled")
 	}
@@ -163,7 +172,7 @@ func startJobs() {
 	c.Start()
 }
 
-func init() {
+func initializeData() {
 	// for initial app
 	jobs.NewPushSumKeyReplacer().Run()
 	jobs.NewMigrateBoard(map[string]string{}).Run()
