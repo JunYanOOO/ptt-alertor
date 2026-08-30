@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
 
 	"strings"
 
+	"github.com/Ptt-Alertor/ptt-alertor/config"
 	"github.com/Ptt-Alertor/ptt-alertor/connections"
 	"github.com/Ptt-Alertor/ptt-alertor/models/counter"
 	"github.com/Ptt-Alertor/ptt-alertor/models/top"
@@ -41,10 +43,25 @@ func markDowner(args ...interface{}) template.HTML {
 }
 
 var (
-	templates = template.Must(template.ParseFiles(tpls...))
-	wsHost    = os.Getenv("APP_WS_HOST")
-	s3Domain  = os.Getenv("S3_DOMAIN")
+	templates     *template.Template
+	templatesOnce sync.Once
+	wsHost        = os.Getenv("APP_WS_HOST")
+	s3Domain      = os.Getenv("S3_DOMAIN")
 )
+
+func appTemplates() *template.Template {
+	templatesOnce.Do(func() {
+		files := tpls
+		if _, err := os.Stat(files[0]); err != nil {
+			files = make([]string, len(tpls))
+			for index, path := range tpls {
+				files[index] = "../" + path
+			}
+		}
+		templates = template.Must(template.ParseFiles(files...))
+	})
+	return templates
+}
 
 // Index Handles router "/" request
 func Index(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -53,12 +70,13 @@ func Index(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 // LineIndex Handles router "/line" request
 func LineIndex(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	err := templates.ExecuteTemplate(w, "line.html", struct {
+	err := appTemplates().ExecuteTemplate(w, "line.html", struct {
 		URI      string
 		WSHost   string
 		Count    []string
 		S3Domain string
-	}{"line", wsHost, count(), s3Domain})
+		Features config.Features
+	}{"line", wsHost, count(), s3Domain, config.Current().Features})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -66,12 +84,13 @@ func LineIndex(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 // MessengerIndex Handles router "/messenger" request
 func MessengerIndex(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	err := templates.ExecuteTemplate(w, "messenger.html", struct {
+	err := appTemplates().ExecuteTemplate(w, "messenger.html", struct {
 		URI      string
 		WSHost   string
 		Count    []string
 		S3Domain string
-	}{"messenger", wsHost, count(), s3Domain})
+		Features config.Features
+	}{"messenger", wsHost, count(), s3Domain, config.Current().Features})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -79,12 +98,13 @@ func MessengerIndex(w http.ResponseWriter, r *http.Request, _ httprouter.Params)
 
 // TelegramIndex Handles router "/telegram" request
 func TelegramIndex(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	err := templates.ExecuteTemplate(w, "telegram.html", struct {
+	err := appTemplates().ExecuteTemplate(w, "telegram.html", struct {
 		URI      string
 		WSHost   string
 		Count    []string
 		S3Domain string
-	}{"telegram", wsHost, count(), s3Domain})
+		Features config.Features
+	}{"telegram", wsHost, count(), s3Domain, config.Current().Features})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -117,14 +137,16 @@ func Top(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		Authors  top.WordOrders
 		PushSum  top.WordOrders
 		S3Domain string
+		Features config.Features
 	}{
 		"top",
 		keywords,
 		authors,
 		pushsum,
 		s3Domain,
+		config.Current().Features,
 	}
-	err := templates.ExecuteTemplate(w, "top.html", data)
+	err := appTemplates().ExecuteTemplate(w, "top.html", data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -132,12 +154,14 @@ func Top(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 // Docs shows advanced intructions
 func Docs(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	err := templates.ExecuteTemplate(w, "docs.html", struct {
+	err := appTemplates().ExecuteTemplate(w, "docs.html", struct {
 		URI      string
 		S3Domain string
+		Features config.Features
 	}{
 		"docs",
 		s3Domain,
+		config.Current().Features,
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

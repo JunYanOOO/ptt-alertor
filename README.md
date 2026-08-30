@@ -28,6 +28,12 @@ Notification integrations are optional. LINE Bot requires both
 `TELEGRAM_TOKEN` and set `APP_HOST` to a public HTTPS URL in `.env`; the
 application registers `${APP_HOST}/telegram/${TELEGRAM_TOKEN}` as its webhook.
 
+Tracking features are controlled by `config.yaml` in the project root. The
+default configuration enables keyword tracking only. Each option has a
+Traditional Chinese comment; restart the application after changing it. An
+invalid, incomplete, or missing configuration file prevents startup so that a
+disabled feature cannot be enabled accidentally.
+
 Stop the stack with:
 
 ```powershell

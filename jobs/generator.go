@@ -3,6 +3,7 @@ package jobs
 import (
 	log "github.com/Ptt-Alertor/logrus"
 
+	"github.com/Ptt-Alertor/ptt-alertor/config"
 	"github.com/Ptt-Alertor/ptt-alertor/models"
 	"github.com/Ptt-Alertor/ptt-alertor/models/author"
 	"github.com/Ptt-Alertor/ptt-alertor/models/keyword"
@@ -11,10 +12,11 @@ import (
 )
 
 type Generator struct {
+	features config.Features
 }
 
-func NewGenerator() *Generator {
-	return &Generator{}
+func NewGenerator(features config.Features) *Generator {
+	return &Generator{features: features}
 }
 
 func (gb Generator) Run() {
@@ -26,19 +28,19 @@ func (gb Generator) Run() {
 
 	for _, u := range models.User().All() {
 		for _, sub := range u.Subscribes {
-			if !boardNameBool[sub.Board] {
+			if gb.hasEnabledSubscription(sub) && !boardNameBool[sub.Board] {
 				addBoard(sub.Board)
 			}
-			if sub.PushSum != subscription.EmptyPushSum {
+			if gb.features.PushSumTracking && sub.PushSum != subscription.EmptyPushSum {
 				addPushsumSub(u.Profile.Account, sub.Board)
 			}
-			if len(sub.Keywords) > 0 {
+			if gb.features.KeywordTracking && len(sub.Keywords) > 0 {
 				addKeywordSub(u.Profile.Account, sub.Board)
 			}
-			if len(sub.Authors) > 0 {
+			if gb.features.AuthorTracking && len(sub.Authors) > 0 {
 				addAuthorSub(u.Profile.Account, sub.Board)
 			}
-			if len(sub.Articles) > 0 {
+			if gb.features.ArticleCommentTracking && len(sub.Articles) > 0 {
 				for _, a := range sub.Articles {
 					addArticleSub(u.Profile.Account, a)
 				}
@@ -46,6 +48,13 @@ func (gb Generator) Run() {
 		}
 	}
 	log.Info("Generated Done")
+}
+
+func (gb Generator) hasEnabledSubscription(sub subscription.Subscription) bool {
+	return gb.features.KeywordTracking && len(sub.Keywords) > 0 ||
+		gb.features.AuthorTracking && len(sub.Authors) > 0 ||
+		gb.features.PushSumTracking && sub.PushSum != subscription.EmptyPushSum ||
+		gb.features.ArticleCommentTracking && len(sub.Articles) > 0
 }
 
 func addBoard(boardName string) {

@@ -12,6 +12,7 @@ import (
 	"strconv"
 
 	"github.com/Ptt-Alertor/ptt-alertor/command"
+	"github.com/Ptt-Alertor/ptt-alertor/config"
 	"github.com/Ptt-Alertor/ptt-alertor/myutil"
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/julienschmidt/httprouter"
@@ -145,7 +146,10 @@ func handleText(update tgbotapi.Update) {
 	userID := strconv.Itoa(update.Message.From.ID)
 	chatID := update.Message.Chat.ID
 	text := update.Message.Text
-	if match, _ := regexp.MatchString("^(刪除|刪除作者)+\\s.*\\*+", text); match {
+	features := config.Current().Features
+	keywordDelete, _ := regexp.MatchString("^刪除\\s.*\\*+", text)
+	authorDelete, _ := regexp.MatchString("^刪除作者\\s.*\\*+", text)
+	if features.KeywordTracking && keywordDelete || features.AuthorTracking && authorDelete {
 		sendConfirmation(chatID, text)
 		return
 	}
@@ -191,13 +195,15 @@ func sendTextMessage(chatID int64, text string) {
 }
 
 func showReplyKeyboard(chatID int64) {
-	keyboard := tgbotapi.NewReplyKeyboard(
-		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton("清單"),
-			tgbotapi.NewKeyboardButton("推文清單"),
-			tgbotapi.NewKeyboardButton("排行"),
-			tgbotapi.NewKeyboardButton("指令"),
-		))
+	buttons := []tgbotapi.KeyboardButton{
+		tgbotapi.NewKeyboardButton("清單"),
+		tgbotapi.NewKeyboardButton("排行"),
+		tgbotapi.NewKeyboardButton("指令"),
+	}
+	if config.Current().Features.ArticleCommentTracking {
+		buttons = append(buttons, tgbotapi.NewKeyboardButton("推文清單"))
+	}
+	keyboard := tgbotapi.NewReplyKeyboard(tgbotapi.NewKeyboardButtonRow(buttons...))
 	msg := tgbotapi.NewMessage(chatID, "顯示小鍵盤")
 	msg.ReplyMarkup = keyboard
 	_, err := bot.Send(msg)

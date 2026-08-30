@@ -33,6 +33,7 @@ services:
       - ${GOPS_PORT:-16060}:6060
     volumes:
       - app-storage:/app/storage
+      - ./config.yaml:/app/config.yaml:ro
     depends_on:
       redis:
         condition: service_healthy

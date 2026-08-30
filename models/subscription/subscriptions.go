@@ -10,32 +10,49 @@ import (
 type Subscriptions []Subscription
 
 func (ss Subscriptions) String() string {
+	return ss.StringWithOptions(true, true, true, true)
+}
+
+// StringWithOptions renders only enabled subscription types without changing
+// the stored subscriptions.
+func (ss Subscriptions) StringWithOptions(keywords, authors, pushSum, articles bool) string {
 
 	sort.Slice(ss, func(i, j int) bool {
 		return ss[i].Board < ss[j].Board
 	})
 
-	str := "關鍵字\n"
-	for _, sub := range ss {
-		if sub.String() != "" {
-			str += sub.String() + "\n"
+	sections := make([]string, 0, 4)
+	if keywords {
+		str := "關鍵字"
+		for _, sub := range ss {
+			if sub.String() != "" {
+				str += "\n" + sub.String()
+			}
 		}
+		sections = append(sections, str)
 	}
-	str += "----\n作者\n"
-	for _, sub := range ss {
-		if sub.StringAuthor() != "" {
-			str += sub.StringAuthor() + "\n"
+	if authors {
+		str := "作者"
+		for _, sub := range ss {
+			if sub.StringAuthor() != "" {
+				str += "\n" + sub.StringAuthor()
+			}
 		}
+		sections = append(sections, str)
 	}
-	str += "----\n推文數\n"
-	for _, sub := range ss {
-		if sub.StringPushSum() != "" {
-			str += sub.StringPushSum() + "\n"
+	if pushSum {
+		str := "推文數"
+		for _, sub := range ss {
+			if sub.StringPushSum() != "" {
+				str += "\n" + sub.StringPushSum()
+			}
 		}
+		sections = append(sections, str)
 	}
-	str += "----\n推文\n請輸入「推文清單」查看推文追蹤列表。"
-
-	return str
+	if articles {
+		sections = append(sections, "推文\n請輸入「推文清單」查看推文追蹤列表。")
+	}
+	return strings.Join(sections, "\n----\n")
 }
 
 func (ss Subscriptions) StringCommentList() string {
