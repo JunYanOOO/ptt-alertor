@@ -1,5 +1,7 @@
 # Ptt-Alertor
 
+English | [繁體中文](README.zh-TW.md)
+
 <img align="right" src="https://raw.githubusercontent.com/Ptt-Alertor/ptt-alertor/master/logo.jpg">
 
 [![Build Status](https://github.com/Ptt-Alertor/ptt-alertor/actions/workflows/main.yml/badge.svg)](https://github.com/Ptt-Alertor/ptt-alertor/actions/workflows/main.yml)
@@ -73,6 +75,9 @@ Subscriptions are stored in Redis and survive application restarts. Leave
 `DISCORD_GUILD_ID` empty in production to register the commands globally.
 
 ## API
+
+Author, push-sum, and article-comment endpoints are registered only when their
+corresponding features are enabled in `config.yaml`.
 
 ### Board
 
