@@ -18,6 +18,7 @@ WORKDIR /app
 
 COPY --from=builder /out/ptt-alertor ./ptt-alertor
 COPY public/ ./public/
+COPY config.yaml ./config.yaml
 
 RUN mkdir -p /app/storage/articles /app/storage/users \
     && chown -R app:app /app

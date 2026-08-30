@@ -8,14 +8,17 @@ import (
 
 	"strings"
 
+	"github.com/Ptt-Alertor/ptt-alertor/config"
 	"github.com/Ptt-Alertor/ptt-alertor/models"
 	"github.com/Ptt-Alertor/ptt-alertor/models/top"
 )
 
-type Top struct{}
+type Top struct {
+	features config.Features
+}
 
-func NewTop() *Top {
-	return &Top{}
+func NewTop(features config.Features) *Top {
+	return &Top{features: features}
 }
 
 func (t Top) Run() {
@@ -25,19 +28,25 @@ func (t Top) Run() {
 	pushSumMap := make(map[top.BoardWord]int)
 	for _, u := range models.User().All() {
 		for _, sub := range u.Subscribes {
-			for _, keyword := range sub.Keywords {
-				keyword = strings.ToLower(keyword)
-				keywordMap[top.BoardWord{Board: sub.Board, Word: keyword}]++
+			if t.features.KeywordTracking {
+				for _, keyword := range sub.Keywords {
+					keyword = strings.ToLower(keyword)
+					keywordMap[top.BoardWord{Board: sub.Board, Word: keyword}]++
+				}
 			}
-			for _, author := range sub.Authors {
-				author = strings.ToLower(author)
-				authorMap[top.BoardWord{Board: sub.Board, Word: author}]++
+			if t.features.AuthorTracking {
+				for _, author := range sub.Authors {
+					author = strings.ToLower(author)
+					authorMap[top.BoardWord{Board: sub.Board, Word: author}]++
+				}
 			}
-			if sub.PushSum.Up != 0 {
-				pushSumMap[top.BoardWord{Board: sub.Board, Word: strconv.Itoa(sub.PushSum.Up)}]++
-			}
-			if sub.PushSum.Down != 0 {
-				pushSumMap[top.BoardWord{Board: sub.Board, Word: strconv.Itoa(sub.PushSum.Down * -1)}]++
+			if t.features.PushSumTracking {
+				if sub.PushSum.Up != 0 {
+					pushSumMap[top.BoardWord{Board: sub.Board, Word: strconv.Itoa(sub.PushSum.Up)}]++
+				}
+				if sub.PushSum.Down != 0 {
+					pushSumMap[top.BoardWord{Board: sub.Board, Word: strconv.Itoa(sub.PushSum.Down * -1)}]++
+				}
 			}
 		}
 	}

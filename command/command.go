@@ -15,6 +15,7 @@ import (
 	"fmt"
 
 	log "github.com/Ptt-Alertor/logrus"
+	"github.com/Ptt-Alertor/ptt-alertor/config"
 	"github.com/Ptt-Alertor/ptt-alertor/models/article"
 	"github.com/Ptt-Alertor/ptt-alertor/models/board"
 	"github.com/Ptt-Alertor/ptt-alertor/models/subscription"
@@ -24,6 +25,7 @@ import (
 
 const subArticlesLimit int = 50
 const updateFailedMsg string = "失敗，請嘗試封鎖再解封鎖，並重新執行註冊步驟。\n若問題未解決，請至粉絲團或 LINE 首頁留言。"
+const DisabledFeatureMessage = "此功能目前停用"
 
 var inputErrorTips = []string{
 	"指令格式錯誤。",
@@ -77,7 +79,15 @@ var commandActionMap = map[string]updateAction{
 
 // HandleCommand handles command from chatbot
 func HandleCommand(text string, userID string, isUser bool) string {
-	command := strings.ToLower(strings.Fields(strings.TrimSpace(text))[0])
+	fields := strings.Fields(strings.TrimSpace(text))
+	if len(fields) == 0 {
+		if isUser {
+			return "無此指令，請打「指令」查看指令清單"
+		}
+		return ""
+	}
+	command := strings.ToLower(fields[0])
+	features := config.Current().Features
 	if isUser {
 		log.WithFields(log.Fields{
 			"account": userID,
@@ -94,6 +104,9 @@ func HandleCommand(text string, userID string, isUser bool) string {
 	case "排行", "ranking":
 		return listTop()
 	case "新增", "刪除":
+		if !features.KeywordTracking {
+			return DisabledFeatureMessage
+		}
 		re := regexp.MustCompile("^(新增|刪除)\\s+([^,，][\\w-_,，\\.]*[^,，:\\s]):?\\s+(\\*|.*[^\\s])")
 		if matched := re.MatchString(text); !matched {
 			errorTips := inputErrorTips
@@ -111,6 +124,9 @@ func HandleCommand(text string, userID string, isUser bool) string {
 		}
 		return result
 	case "新增作者", "刪除作者":
+		if !features.AuthorTracking {
+			return DisabledFeatureMessage
+		}
 		re := regexp.MustCompile("^(新增作者|刪除作者)\\s+([^,，][\\w-_,，\\.]*[^,，:\\s]):?\\s+(\\*|[\\s,\\w]+)$")
 		matched := re.MatchString(text)
 		if !matched {
@@ -130,6 +146,9 @@ func HandleCommand(text string, userID string, isUser bool) string {
 		}
 		return result
 	case "新增推文數", "新增噓文數":
+		if !features.PushSumTracking {
+			return DisabledFeatureMessage
+		}
 		re := regexp.MustCompile("^(新增推文數|新增噓文數)\\s+([^,，][\\w-_,，\\.]*[^,，:\\s]):?\\s+(100|[1-9][0-9]|[0-9])$")
 		matched := re.MatchString(text)
 		if !matched {
@@ -149,6 +168,9 @@ func HandleCommand(text string, userID string, isUser bool) string {
 		}
 		return result
 	case "新增推文", "刪除推文":
+		if !features.ArticleCommentTracking {
+			return DisabledFeatureMessage
+		}
 		re := regexp.MustCompile("^(新增推文|刪除推文)\\s+https?://www.ptt.cc/bbs/([\\w-_]*)/(M\\.\\d+.A.\\w*)\\.html$")
 		matched := re.MatchString(text)
 		if !matched {
@@ -168,8 +190,14 @@ func HandleCommand(text string, userID string, isUser bool) string {
 		}
 		return result
 	case "清理推文":
+		if !features.ArticleCommentTracking {
+			return DisabledFeatureMessage
+		}
 		return cleanCommentList(userID)
 	case "推文清單":
+		if !features.ArticleCommentTracking {
+			return DisabledFeatureMessage
+		}
 		return handleCommentList(userID)
 	case "add", "del":
 		return handleCommandLine(userID, command, text)
@@ -214,6 +242,12 @@ func handleCommandLine(userID, command, text string) string {
 			"輸入 " + command + " -h 查看提示訊息。",
 		}
 		return strings.Join(errorTips, "\n")
+	}
+	features := config.Current().Features
+	if keywordStr != "" && !features.KeywordTracking ||
+		authorStr != "" && !features.AuthorTracking ||
+		(push != "" || boo != "") && !features.PushSumTracking {
+		return DisabledFeatureMessage
 	}
 
 	log.WithField("command", text).Info("Command Line Request")
@@ -276,7 +310,13 @@ func handleList(account string) string {
 	if len(subs) == 0 {
 		return "尚未建立清單。請打「指令」查看新增方法。"
 	}
-	return subs.String()
+	features := config.Current().Features
+	return subs.StringWithOptions(
+		features.KeywordTracking,
+		features.AuthorTracking,
+		features.PushSumTracking,
+		features.ArticleCommentTracking,
+	)
 }
 
 func cleanCommentList(account string) string {
@@ -308,7 +348,7 @@ func handleCommentList(account string) string {
 
 func stringCommands() string {
 	str := ""
-	for cat, cmds := range Commands {
+	for cat, cmds := range EnabledCommands() {
 		str += "[" + cat + "]\n"
 		for cmd, doc := range cmds {
 			str += cmd
@@ -323,20 +363,30 @@ func stringCommands() string {
 }
 
 func listTop() string {
-	content := "關鍵字"
-	for i, keyword := range top.ListKeywords(5) {
-		content += fmt.Sprintf("\n%d. %s", i+1, keyword)
+	features := config.Current().Features
+	sections := make([]string, 0, 3)
+	if features.KeywordTracking {
+		content := "關鍵字"
+		for i, keyword := range top.ListKeywords(5) {
+			content += fmt.Sprintf("\n%d. %s", i+1, keyword)
+		}
+		sections = append(sections, content)
 	}
-	content += "\n----\n作者"
-	for i, author := range top.ListAuthors(5) {
-		content += fmt.Sprintf("\n%d. %s", i+1, author)
+	if features.AuthorTracking {
+		content := "作者"
+		for i, author := range top.ListAuthors(5) {
+			content += fmt.Sprintf("\n%d. %s", i+1, author)
+		}
+		sections = append(sections, content)
 	}
-	content += "\n----\n推噓文"
-	for i, pushSum := range top.ListPushSum(5) {
-		content += fmt.Sprintf("\n%d. %s", i+1, pushSum)
+	if features.PushSumTracking {
+		content := "推噓文"
+		for i, pushSum := range top.ListPushSum(5) {
+			content += fmt.Sprintf("\n%d. %s", i+1, pushSum)
+		}
+		sections = append(sections, content)
 	}
-	content += "\n\nTOP 100:\nhttps://line-notify.sating.cc/top"
-	return content
+	return strings.Join(sections, "\n----\n") + "\n\nTOP 100:\nhttps://line-notify.sating.cc/top"
 }
 
 func handleKeyword(command, userID, board, keywordStr string) (string, error) {
@@ -574,6 +624,20 @@ func HandleTelegramFollow(id string, chatID int64) error {
 	return handleFollow(u)
 }
 
+// HandleDiscordFollow creates or re-enables the subscription owner for a
+// Discord channel. Subscriptions are channel-scoped so every server channel
+// can maintain an independent watch list.
+func HandleDiscordFollow(channelID string) (string, error) {
+	account := "discord:" + channelID
+	u := models.User().Find(account)
+	u.Profile.DiscordChannel = channelID
+	log.WithFields(log.Fields{
+		"id":       channelID,
+		"platform": "discord",
+	}).Info("User Join")
+	return account, handleFollow(u)
+}
+
 func handleFollow(u user.User) error {
 	if u.Profile.Account != "" {
 		u.Enable = true
@@ -587,6 +651,9 @@ func handleFollow(u user.User) error {
 		}
 		if u.Profile.Telegram != "" {
 			u.Profile.Account = u.Profile.Telegram
+		}
+		if u.Profile.DiscordChannel != "" {
+			u.Profile.Account = "discord:" + u.Profile.DiscordChannel
 		}
 		u.Enable = true
 		err := u.Save()

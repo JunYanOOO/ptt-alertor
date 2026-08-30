@@ -11,6 +11,7 @@ import (
 
 	log "github.com/Ptt-Alertor/logrus"
 	"github.com/Ptt-Alertor/ptt-alertor/command"
+	"github.com/Ptt-Alertor/ptt-alertor/config"
 	"github.com/Ptt-Alertor/ptt-alertor/models"
 	"github.com/Ptt-Alertor/ptt-alertor/myutil"
 	"github.com/Ptt-Alertor/ptt-alertor/shorturl"
@@ -87,7 +88,10 @@ func handleMessage(event *linebot.Event) {
 			replyMessage(event.ReplyToken, lineMsg...)
 			return
 		}
-		if match, _ := regexp.MatchString("^(刪除|刪除作者)+\\s.*\\*+", text); match {
+		features := config.Current().Features
+		keywordDelete, _ := regexp.MatchString("^刪除\\s.*\\*+", text)
+		authorDelete, _ := regexp.MatchString("^刪除作者\\s.*\\*+", text)
+		if features.KeywordTracking && keywordDelete || features.AuthorTracking && authorDelete {
 			replyMessage(event.ReplyToken, genConfirmMessage(text))
 			return
 		}

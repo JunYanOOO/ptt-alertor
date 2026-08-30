@@ -8,6 +8,7 @@ require (
 	github.com/Ptt-Alertor/logrus v0.0.0-20170625191354-a4db038e018c
 	github.com/alicebob/miniredis v0.0.0-20171207150240-955f929b3a68
 	github.com/aws/aws-sdk-go v1.50.20
+	github.com/bwmarrin/discordgo v0.28.1
 	github.com/garyburd/redigo v0.0.0-20170216214944-0d253a66e6e1
 	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible
 	github.com/google/gops v0.3.28
@@ -18,6 +19,11 @@ require (
 	golang.org/x/net v0.20.0
 	gopkg.in/h2non/gock.v1 v1.0.7
 	gopkg.in/mailgun/mailgun-go.v1 v1.0.2
+)
+
+require (
+	github.com/gorilla/websocket v1.4.2 // indirect
+	golang.org/x/crypto v0.18.0 // indirect
 )
 
 require (
@@ -32,4 +38,5 @@ require (
 	github.com/technoweenie/multipartstreamer v1.0.1 // indirect
 	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1
 )

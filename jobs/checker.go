@@ -10,6 +10,7 @@ import (
 
 	log "github.com/Ptt-Alertor/logrus"
 
+	"github.com/Ptt-Alertor/ptt-alertor/config"
 	"github.com/Ptt-Alertor/ptt-alertor/models"
 	"github.com/Ptt-Alertor/ptt-alertor/models/article"
 	"github.com/Ptt-Alertor/ptt-alertor/models/author"
@@ -50,13 +51,15 @@ type Checker struct {
 	done     chan struct{}
 	ch       chan Checker
 	duration time.Duration
+	features config.Features
 }
 
 // NewChecker gets a Checker instance
-func NewChecker() *Checker {
+func NewChecker(features config.Features) *Checker {
 	ckerOnce.Do(func() {
 		cker = &Checker{
 			duration: 250 * time.Millisecond,
+			features: features,
 		}
 		cker.done = make(chan struct{})
 		cker.ch = make(chan Checker)
@@ -94,7 +97,7 @@ func (c Checker) Run() {
 			case <-ctx.Done():
 				return
 			default:
-				checkBoards(highBoards, checkHighBoardDuration)
+				checkBoards(highBoards, checkHighBoardDuration, c.features)
 			}
 		}
 	}()
@@ -126,7 +129,7 @@ func (c Checker) Run() {
 					offPeak = op
 				}
 			default:
-				checkBoards(models.Board().All(), duration)
+				checkBoards(models.Board().All(), duration, c.features)
 			}
 		}
 	}()
@@ -136,8 +139,12 @@ func (c Checker) Run() {
 		select {
 		//step 2: check user who subscribes board
 		case bd := <-boardCh:
-			go checkKeywordSubscriber(bd, c)
-			go checkAuthorSubscriber(bd, c)
+			if c.features.KeywordTracking {
+				go checkKeywordSubscriber(bd, c)
+			}
+			if c.features.AuthorTracking {
+				go checkAuthorSubscriber(bd, c)
+			}
 		//step 3: send notification
 		case cker := <-c.ch:
 			ckCh <- cker
@@ -177,16 +184,31 @@ func (c Checker) Stop() {
 	log.Info("Checker Stop")
 }
 
-func checkBoards(bds []*board.Board, duration time.Duration) {
+func checkBoards(bds []*board.Board, duration time.Duration, features config.Features) {
 	if len(bds) == 0 {
 		time.Sleep(duration)
 		return
 	}
 
+	active := false
 	for _, bd := range bds {
+		if !boardHasEnabledSubscribers(bd.Name, features) {
+			continue
+		}
+		active = true
 		time.Sleep(duration)
 		go checkNewArticle(bd, boardCh)
 	}
+	if !active {
+		time.Sleep(duration)
+	}
+}
+
+func boardHasEnabledSubscribers(boardName string, features config.Features) bool {
+	if features.KeywordTracking && len(keyword.Subscribers(boardName)) > 0 {
+		return true
+	}
+	return features.AuthorTracking && len(author.Subscribers(boardName)) > 0
 }
 
 func checkNewArticle(bd *board.Board, boardCh chan *board.Board) {

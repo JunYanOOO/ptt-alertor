@@ -31,6 +31,7 @@ func TestUser_Save(t *testing.T) {
 		wantErr bool
 	}{
 		{"ok", User{Profile: Profile{Account: "liam.lai@gmail.com", Email: "liam.lai@gmail.com"}, drive: new(Mock)}, false},
+		{"discord", User{Profile: Profile{Account: "discord:123", DiscordChannel: "123"}, drive: new(Mock)}, false},
 		{"duplicate", User{Profile: Profile{Account: "dinos80152@gmail.com", Email: "dinos80152@gmail.com"}, drive: new(Mock)}, true},
 		{"not enough data", User{Profile: Profile{Account: "dinos80152@gmail.com"}, drive: new(Mock)}, true},
 	}

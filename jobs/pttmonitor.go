@@ -5,17 +5,20 @@ import (
 	"time"
 
 	log "github.com/Ptt-Alertor/logrus"
+	"github.com/Ptt-Alertor/ptt-alertor/config"
 )
 
 type pttMonitor struct {
 	duration time.Duration
 	retry    int
+	features config.Features
 }
 
-func NewPttMonitor() *pttMonitor {
+func NewPttMonitor(features config.Features) *pttMonitor {
 	return &pttMonitor{
 		duration: 1 * time.Minute,
 		retry:    3,
+		features: features,
 	}
 }
 
@@ -34,9 +37,7 @@ func (pm pttMonitor) Run() {
 			log.Info("Ptt is alive")
 			if errorCounter >= pm.retry {
 				log.Info("Ptt is back to life")
-				go NewChecker().Run()
-				go NewPushSumChecker().Run()
-				go NewCommentChecker().Run()
+				pm.startTrackingJobs()
 			}
 			errorCounter = 0
 		}
@@ -46,11 +47,33 @@ func (pm pttMonitor) Run() {
 			}
 			if errorCounter == pm.retry {
 				log.Info("Ptt is Dead")
-				go NewChecker().Stop()
-				go NewPushSumChecker().Stop()
-				go NewCommentChecker().Stop()
+				pm.stopTrackingJobs()
 			}
 			errorCounter++
 		}
+	}
+}
+
+func (pm pttMonitor) startTrackingJobs() {
+	if pm.features.KeywordTracking || pm.features.AuthorTracking {
+		go NewChecker(pm.features).Run()
+	}
+	if pm.features.PushSumTracking {
+		go NewPushSumChecker().Run()
+	}
+	if pm.features.ArticleCommentTracking {
+		go NewCommentChecker().Run()
+	}
+}
+
+func (pm pttMonitor) stopTrackingJobs() {
+	if pm.features.KeywordTracking || pm.features.AuthorTracking {
+		go NewChecker(pm.features).Stop()
+	}
+	if pm.features.PushSumTracking {
+		go NewPushSumChecker().Stop()
+	}
+	if pm.features.ArticleCommentTracking {
+		go NewCommentChecker().Stop()
 	}
 }

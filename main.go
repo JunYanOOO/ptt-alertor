@@ -13,9 +13,12 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/robfig/cron"
 
+	discordchannel "github.com/Ptt-Alertor/ptt-alertor/channels/discord"
 	"github.com/Ptt-Alertor/ptt-alertor/channels/line"
 	"github.com/Ptt-Alertor/ptt-alertor/channels/messenger"
 	"github.com/Ptt-Alertor/ptt-alertor/channels/telegram"
+	"github.com/Ptt-Alertor/ptt-alertor/config"
+	"github.com/Ptt-Alertor/ptt-alertor/connections"
 	ctrlr "github.com/Ptt-Alertor/ptt-alertor/controllers"
 	"github.com/Ptt-Alertor/ptt-alertor/jobs"
 )
@@ -60,8 +63,25 @@ func basicAuth(handle httprouter.Handle) httprouter.Handle {
 }
 
 func main() {
+	appConfig, configError := config.Load("config.yaml")
+	if configError != nil {
+		log.WithError(configError).Fatal("Configuration Load Failed")
+	}
+
+	databaseContext, cancelDatabaseInitialization := context.WithTimeout(context.Background(), 2*time.Minute)
+	databaseInitializationError := connections.EnsureDynamoDB(databaseContext)
+	cancelDatabaseInitialization()
+	if databaseInitializationError != nil {
+		log.WithError(databaseInitializationError).Fatal("DynamoDB Initialize Failed")
+	}
+	initializeData(appConfig.Features)
+
+	if err := discordchannel.Start(); err != nil {
+		log.WithError(err).Error("Discord Bot Initialize Failed; Discord is disabled")
+	}
+	defer discordchannel.Close()
 	log.Info("Start Jobs")
-	startJobs()
+	startJobs(appConfig.Features)
 
 	router := newRouter()
 	m := messenger.New()
@@ -84,17 +104,7 @@ func main() {
 	router.GET("/boards/:boardName/articles", ctrlr.BoardArticleIndex)
 	router.GET("/boards", ctrlr.BoardIndex)
 
-	// keyword apis
-	router.GET("/keyword/boards", ctrlr.KeywordBoards)
-
-	// author apis
-	router.GET("/author/boards", ctrlr.AuthorBoards)
-
-	// pushsum apis
-	router.GET("/pushsum/boards", ctrlr.PushSumBoards)
-
-	// articles apis
-	router.GET("/articles", ctrlr.ArticleIndex)
+	registerTrackingAPIs(router, appConfig.Features)
 
 	// users apis
 	router.GET("/users/:account", basicAuth(ctrlr.UserFind))
@@ -147,25 +157,54 @@ func main() {
 	log.Info("Web Server Was Been Shutdown")
 }
 
-func startJobs() {
-	go jobs.NewChecker().Run()
-	go jobs.NewPushSumChecker().Run()
-	go jobs.NewCommentChecker().Run()
-	go jobs.NewPttMonitor().Run()
+func registerTrackingAPIs(router *myRouter, features config.Features) {
+	if features.KeywordTracking {
+		router.GET("/keyword/boards", ctrlr.KeywordBoards)
+	}
+	if features.AuthorTracking {
+		router.GET("/author/boards", ctrlr.AuthorBoards)
+	}
+	if features.PushSumTracking {
+		router.GET("/pushsum/boards", ctrlr.PushSumBoards)
+	}
+	if features.ArticleCommentTracking {
+		router.GET("/articles", ctrlr.ArticleIndex)
+	}
+}
+
+func startJobs(features config.Features) {
+	if features.KeywordTracking || features.AuthorTracking {
+		go jobs.NewChecker(features).Run()
+	}
+	if features.PushSumTracking {
+		go jobs.NewPushSumChecker().Run()
+	}
+	if features.ArticleCommentTracking {
+		go jobs.NewCommentChecker().Run()
+	}
+	go jobs.NewPttMonitor(features).Run()
 	c := cron.New()
-	c.AddJob("@hourly", jobs.NewTop())
-	c.AddJob("@every 48h", jobs.NewPushSumKeyReplacer())
+	c.AddJob("@hourly", jobs.NewTop(features))
+	if features.PushSumTracking {
+		c.AddJob("@every 48h", jobs.NewPushSumKeyReplacer())
+	}
 	c.Start()
 }
 
-func init() {
+func initializeData(features config.Features) {
 	// for initial app
-	jobs.NewPushSumKeyReplacer().Run()
+	if features.PushSumTracking {
+		jobs.NewPushSumKeyReplacer().Run()
+	}
 	jobs.NewMigrateBoard(map[string]string{}).Run()
-	jobs.NewTop().Run()
+	jobs.NewTop(features).Run()
 	jobs.NewCacheCleaner().Run()
-	jobs.NewGenerator().Run()
-	jobs.NewFetcher().Run()
+	jobs.NewGenerator(features).Run()
+	jobs.NewFetcher(features).Run()
 	jobs.NewMigrateDB().Run()
-	jobs.NewCategoryCleaner().Run()
+	// Category cleanup can remove complete legacy subscriptions. Run it only
+	// when every tracking type is active so disabled data remains untouched.
+	if features.KeywordTracking && features.AuthorTracking && features.PushSumTracking && features.ArticleCommentTracking {
+		jobs.NewCategoryCleaner().Run()
+	}
 }

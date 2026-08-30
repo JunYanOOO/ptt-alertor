@@ -9,18 +9,18 @@
             {{template "header"}}
         </div>
         <ul class="nav nav-tabs" role="tablist">
-            <li role="presentation" class="active">
+            {{if .Features.KeywordTracking}}<li role="presentation" class="active">
                 <a href="#keywords" aria-controls="keywords" role="tab" data-toggle="tab">關鍵字</a>
-            </li>
-            <li role="presentation">
+            </li>{{end}}
+            {{if .Features.AuthorTracking}}<li role="presentation"{{if not .Features.KeywordTracking}} class="active"{{end}}>
                 <a href="#authors" aria-controls="authors" role="tab" data-toggle="tab">作者</a>
-            </li>
-            <li role="presentation">
+            </li>{{end}}
+            {{if .Features.PushSumTracking}}<li role="presentation"{{if and (not .Features.KeywordTracking) (not .Features.AuthorTracking)}} class="active"{{end}}>
                 <a href="#pushsum" aria-controls="pushsum" role="tab" data-toggle="tab">推噓文</a>
-            </li>
+            </li>{{end}}
         </ul>
         <div class="tab-content">
-            <div role="tabpanel" class="tab-pane active" id="keywords">
+            {{if .Features.KeywordTracking}}<div role="tabpanel" class="tab-pane active" id="keywords">
                 <table class="table table-hover">
                     <thead>
                         <tr>
@@ -45,8 +45,8 @@
                         {{end}}
                     </tbody>
                 </table>
-            </div>
-            <div role="tabpanel" class="tab-pane" id="authors">
+            </div>{{end}}
+            {{if .Features.AuthorTracking}}<div role="tabpanel" class="tab-pane{{if not .Features.KeywordTracking}} active{{end}}" id="authors">
                 <table class="table table-hover">
                     <thead>
                         <tr>
@@ -71,8 +71,8 @@
                         {{end}}
                     </tbody>
                 </table>
-            </div>
-            <div role="tabpanel" class="tab-pane" id="pushsum">
+            </div>{{end}}
+            {{if .Features.PushSumTracking}}<div role="tabpanel" class="tab-pane{{if and (not .Features.KeywordTracking) (not .Features.AuthorTracking)}} active{{end}}" id="pushsum">
                 <table class="table table-hover">
                     <thead>
                         <tr>
@@ -97,7 +97,7 @@
                         {{end}}
                     </tbody>
                 </table>
-            </div>
+            </div>{{end}}
         </div>
         {{template "footer"}}
     </div>
@@ -105,12 +105,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/1.7.1/clipboard.min.js"></script>
     <script>
         $(function () {
-            var tab = "keywords"
+            var tab = "{{if .Features.KeywordTracking}}keywords{{else if .Features.AuthorTracking}}authors{{else}}pushsum{{end}}"
             var tabCommands = {
-                keywords: "新增",
-                authors: "新增作者",
-                pushsum: "新增推文數",
-                pushsumDown: "新增噓文數"
+                {{if .Features.KeywordTracking}}keywords: "新增",{{end}}
+                {{if .Features.AuthorTracking}}authors: "新增作者",{{end}}
+                {{if .Features.PushSumTracking}}pushsum: "新增推文數",
+                pushsumDown: "新增噓文數"{{end}}
             }
             $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
                 tab = e.target.getAttribute("aria-controls");

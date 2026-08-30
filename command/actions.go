@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Ptt-Alertor/ptt-alertor/config"
 	"github.com/Ptt-Alertor/ptt-alertor/models"
 	"github.com/Ptt-Alertor/ptt-alertor/models/author"
 	"github.com/Ptt-Alertor/ptt-alertor/models/keyword"
@@ -14,6 +15,32 @@ import (
 )
 
 type updateAction func(u *user.User, sub subscription.Subscription, inputs ...string) error
+
+// EnabledCommands returns only commands for features enabled in config.yaml.
+func EnabledCommands() map[string]map[string]string {
+	features := config.Current().Features
+	enabled := map[string]map[string]string{
+		"一般": {
+			"指令": "可使用的指令清單",
+			"清單": "設定的追蹤清單",
+			"排行": "熱門追蹤排行",
+		},
+	}
+	if features.KeywordTracking {
+		enabled["關鍵字相關"] = Commands["關鍵字相關"]
+		enabled["進階應用"] = Commands["進階應用"]
+	}
+	if features.AuthorTracking {
+		enabled["作者相關"] = Commands["作者相關"]
+	}
+	if features.PushSumTracking {
+		enabled["推噓文數相關"] = Commands["推噓文數相關"]
+	}
+	if features.ArticleCommentTracking {
+		enabled["推文相關"] = Commands["推文相關"]
+	}
+	return enabled
+}
 
 func addKeywords(u *user.User, sub subscription.Subscription, inputs ...string) error {
 	sub.Keywords = inputs

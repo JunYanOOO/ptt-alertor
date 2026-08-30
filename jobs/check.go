@@ -3,6 +3,7 @@ package jobs
 import (
 	log "github.com/Ptt-Alertor/logrus"
 
+	discordchannel "github.com/Ptt-Alertor/ptt-alertor/channels/discord"
 	"github.com/Ptt-Alertor/ptt-alertor/channels/line"
 	"github.com/Ptt-Alertor/ptt-alertor/channels/mail"
 	"github.com/Ptt-Alertor/ptt-alertor/channels/messenger"
@@ -65,6 +66,10 @@ func sendMessage(c check) {
 		platform = "telegram"
 		sendTelegram(c)
 	}
+	if cr.Profile.DiscordChannel != "" {
+		platform = "discord"
+		sendDiscord(c)
+	}
 	counter.IncrAlert()
 	log.WithFields(log.Fields{
 		"account":  account,
@@ -104,4 +109,9 @@ func sendMessenger(c check) {
 func sendTelegram(c check) {
 	cr := c.Self()
 	telegram.SendTextMessage(cr.Profile.TelegramChat, c.String())
+}
+
+func sendDiscord(c check) {
+	cr := c.Self()
+	discordchannel.SendTextMessage(cr.Profile.DiscordChannel, c.String())
 }

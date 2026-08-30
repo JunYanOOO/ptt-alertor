@@ -11,6 +11,7 @@ import (
 
 	log "github.com/Ptt-Alertor/logrus"
 	"github.com/Ptt-Alertor/ptt-alertor/command"
+	"github.com/Ptt-Alertor/ptt-alertor/config"
 	"github.com/Ptt-Alertor/ptt-alertor/myutil"
 	"github.com/julienschmidt/httprouter"
 )
@@ -59,7 +60,10 @@ func (m *Messenger) Received(w http.ResponseWriter, r *http.Request, _ httproute
 				if messaging.Message != nil {
 					text := messaging.Message.Text
 					if text != "" {
-						if match, _ := regexp.MatchString("^(刪除|刪除作者)+\\s.*\\*+", text); match {
+						features := config.Current().Features
+						keywordDelete, _ := regexp.MatchString("^刪除\\s.*\\*+", text)
+						authorDelete, _ := regexp.MatchString("^刪除作者\\s.*\\*+", text)
+						if features.KeywordTracking && keywordDelete || features.AuthorTracking && authorDelete {
 							m.SendConfirmation(id, text)
 							return
 						}
@@ -89,7 +93,7 @@ func (m *Messenger) handlePostback(id string, payload string) {
 		// responseText = command.HandleCommand("指令", id)
 		var str string
 		commands := make(map[string]string)
-		for cat, cmds := range command.Commands {
+		for cat, cmds := range command.EnabledCommands() {
 			if strings.EqualFold(cat, "進階應用") || strings.EqualFold(cat, "一般") {
 				continue
 			}

@@ -25,6 +25,7 @@ type Profile struct {
 	Messenger       string `json:"messenger"`
 	Telegram        string `json:"telegram"`
 	TelegramChat    int64  `json:"telegramChat"`
+	DiscordChannel  string `json:"discordChannel"`
 }
 
 type Driver interface {
@@ -62,8 +63,8 @@ func (u User) Save() error {
 		return ErrAccountEmpty
 	}
 
-	if u.Profile.Email == "" && u.Profile.Line == "" && u.Profile.Messenger == "" && u.Profile.Telegram == "" {
-		return errors.New("one of Email, Line, Messenger and Telegram have to be filled")
+	if u.Profile.Email == "" && u.Profile.Line == "" && u.Profile.Messenger == "" && u.Profile.Telegram == "" && u.Profile.DiscordChannel == "" {
+		return errors.New("one notification channel has to be filled")
 	}
 	u.CreateTime = time.Now()
 	u.UpdateTime = time.Now()
